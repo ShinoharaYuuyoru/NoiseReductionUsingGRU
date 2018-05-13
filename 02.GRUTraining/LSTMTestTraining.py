@@ -86,7 +86,7 @@ def perfSeqSpectrum(batch):
 
 # Training data directories
 traindata = os.getcwd() + "/Training/NoiseAdded/"
-voicedata = os.getcwd() + "/Training/StrippedVoices/"
+voicedata = os.getcwd() + "/Training/HumanVoices/"
 checkpoints = os.getcwd() + "/TF_Checkpoints/"
 
 # NormConstant
