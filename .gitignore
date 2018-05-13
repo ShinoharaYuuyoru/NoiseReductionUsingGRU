@@ -137,3 +137,14 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+
+# Database files
+# =========================
+
+# Audio files
+*.wav
+
+# .idea
+# =========================
+
+.idea/
