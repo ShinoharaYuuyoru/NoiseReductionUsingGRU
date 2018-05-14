@@ -148,3 +148,8 @@ $RECYCLE.BIN/
 # =========================
 
 .idea/
+
+# Training Checkpoint
+# =========================
+
+TF_Checkpoints/

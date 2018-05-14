@@ -160,8 +160,8 @@ for root, _, files in os.walk(traindata):
             rate_repository.append(srate)
 
 # Generate a vector of file names that are clean files
-clean_files_vec.append(map(formatFilename, temp_list))
-clean_files_vec = map(None, *clean_files_vec)
+clean_files_vec = list(map(formatFilename, temp_list))
+# clean_files_vec = list(map(None, *clean_files_vec))
 
 # Find clean files that correspond to data in file_repository and buffer clean voice data to memory
 for root, _, files in os.walk(voicedata):
@@ -183,7 +183,7 @@ init_op = tf.global_variables_initializer()  # initialize_all_variables()
 sess = tf.Session()
 sess.run(init_op)
 
-for idx in range(run_epochs):
+for idx in range(int(run_epochs)):
 
     files_vec = []
     clean_files_vec = []
@@ -195,8 +195,8 @@ for idx in range(run_epochs):
         files_vec.append(file_repository[i])
         clean_files_fin_vec.append(clean_repository[i])
 
-    stft_batch = []
-    clean_voice_batch = []
+    # stft_batch = []
+    # clean_voice_batch = []
 
     stft_batch, sequence_length_id, maximum_length = perfSeqSpectrum(files_vec)
     clean_voice_batch, _, _ = perfSeqSpectrum(clean_files_fin_vec)
@@ -225,11 +225,11 @@ for idx in range(run_epochs):
     if ((idx % (run_epochs) / 10) == 0):
         print(" \n Cumulative epochs loss: " + str(loss_value))
         os.chdir(checkpoints)
-        saver.save(sess, 'ssep_model', global_step=idx)
+        saver.save(sess, './ssep_model.ckpt', global_step=idx)
         print("Saved checkpoint")
         os.chdir(traindata)
 
 os.chdir(checkpoints)
-saver.save(sess, 'FINAL')
+saver.save(sess, './FINAL.ckpt')
 print("Saved FINAL")
 sess.close()
