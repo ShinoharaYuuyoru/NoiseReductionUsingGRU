@@ -1,3 +1,6 @@
+# Code By adityatb at https://github.com/adityatb/noise-reduction-using-rnn
+# LSTM method test.
+
 import scipy
 import scipy.signal as signal
 import numpy as np
