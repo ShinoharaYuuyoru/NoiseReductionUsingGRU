@@ -10,6 +10,8 @@ import tensorflow as tf
 import math
 
 
+# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+
 def formatFilename(filename):
     return filename[:len(filename) - 11] + "_voice.wav"
 
@@ -79,7 +81,7 @@ def perfSeqSpectrum(batch):
     t_vec = []
 
     for each in batch:
-        _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided=False)
+        _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided=True)
         t_vec.append(t)
 
     return sequentialized_spectrum(batch, findMaxlen(t_vec))
@@ -165,6 +167,7 @@ clean_files_vec = list(map(formatFilename, temp_list))
 
 # Find clean files that correspond to data in file_repository and buffer clean voice data to memory
 for root, _, files in os.walk(voicedata):
+    files = sorted(files)
     for each in files:
         if each.endswith(".wav"):
             for name in clean_files_vec:
@@ -180,13 +183,14 @@ run_epochs = (no_of_files / batch_size) * epochs
 
 # Initialize TF Graph
 init_op = tf.global_variables_initializer()  # initialize_all_variables()
-sess = tf.Session()
+gpu_options = tf.GPUOptions(allow_growth = True)            # Set session GPU using growing.
+sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_options))
 sess.run(init_op)
 
 for idx in range(int(run_epochs)):
 
     files_vec = []
-    clean_files_vec = []
+    # clean_files_vec = []
     clean_files_fin_vec = []
 
     # Select batch_size no. of random number of files from file_repository and the corresponding clean files
@@ -195,11 +199,11 @@ for idx in range(int(run_epochs)):
         files_vec.append(file_repository[i])
         clean_files_fin_vec.append(clean_repository[i])
 
-    # stft_batch = []
-    # clean_voice_batch = []
+    stft_batch = []
+    clean_voice_batch = []
 
     stft_batch, sequence_length_id, maximum_length = perfSeqSpectrum(files_vec)
-    clean_voice_batch, _, _ = perfSeqSpectrum(clean_files_fin_vec)
+    clean_voice_batch, sequence_length_id_clean, maximum_length_clean = perfSeqSpectrum(clean_files_fin_vec)
 
     # ------------------- Step 2: Feed Data to Placeholders, and then, Initialise, Train and Save the Graph  --------------------- #
 
