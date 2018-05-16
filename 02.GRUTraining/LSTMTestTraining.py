@@ -10,7 +10,7 @@ import tensorflow as tf
 import math
 
 
-# os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+os.environ['CUDA_VISIBLE_DEVICES'] = '2'
 
 def formatFilename(filename):
     return filename[:len(filename) - 11] + "_voice.wav"
@@ -28,7 +28,6 @@ def create_final_sequence(sequence, max_length):
 
 
 def sequentialized_spectrum(batch, maximum_length):
-    len(batch)
     max_run_total = int(math.ceil(float(maximum_length) / sequence_length))
     final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length])
     true_time = np.zeros([len(batch), max_run_total])
@@ -36,11 +35,12 @@ def sequentialized_spectrum(batch, maximum_length):
     # Read in a file and compute spectrum
     for batch_idx, each_set in enumerate(batch):
 
-        f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided=False)
+        f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
 
         # Magnitude and Phase Spectra
         Mag = norm_factor * Sxx.real
-        Phase = Sxx.imag
+        # Mag = Sxx.real
+        # Phase = Sxx.imag
 
         # Break up the spectrum in sequence_length sized data
         run_full_steps = float(len(t)) / sequence_length
@@ -59,10 +59,9 @@ def sequentialized_spectrum(batch, maximum_length):
             if n == sequence_length:
                 final_data[batch_idx, step, :, :] = np.copy(Mag[:, begin_point:end_point])
                 true_time[batch_idx, step] = n
-        else:
-            final_data[batch_idx, step, :, :] = np.copy(
-                create_final_sequence(Mag[:, begin_point:end_point], sequence_length))
-            true_time[batch_idx, step] = n
+            else:
+                final_data[batch_idx, step, :, :] = np.copy(create_final_sequence(Mag[:, begin_point:end_point], sequence_length))
+                true_time[batch_idx, step] = n
 
     final_data = np.transpose(final_data, (0, 1, 3, 2))
 
@@ -81,7 +80,7 @@ def perfSeqSpectrum(batch):
     t_vec = []
 
     for each in batch:
-        _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided=True)
+        _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
         t_vec.append(t)
 
     return sequentialized_spectrum(batch, findMaxlen(t_vec))
@@ -132,8 +131,7 @@ clean_files_vec = []
 lstm_cell = tf.contrib.rnn.BasicLSTMCell(stft_size)
 # stacked_lstm = tf.contrib.rnn.MultiRNNCell([[lstm_cell] for i in number_of_layers])
 init_state = lstm_cell.zero_state(batch_size, tf.float32)
-rnn_outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, input_data, sequence_length=sequence_length_tensor,
-                                             initial_state=init_state, time_major=False)
+rnn_outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, input_data, sequence_length=sequence_length_tensor, initial_state=init_state, time_major=False)
 mse_loss = tf.losses.mean_squared_error(clean_data, rnn_outputs)
 train_optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(mse_loss)
 # train_optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(mse_loss)
@@ -179,13 +177,16 @@ for root, _, files in os.walk(voicedata):
 
 
 # files_vec = []
-run_epochs = (no_of_files / batch_size) * epochs
+run_epochs = int((no_of_files / batch_size) * epochs)
 
 # Initialize TF Graph
 init_op = tf.global_variables_initializer()  # initialize_all_variables()
 gpu_options = tf.GPUOptions(allow_growth = True)            # Set session GPU using growing.
 sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_options))
 sess.run(init_op)
+
+globalBatchLossSum = 0          # Sum of all batch losses
+globalStepsSum = 0          # Sum of all steps
 
 for idx in range(int(run_epochs)):
 
@@ -209,6 +210,7 @@ for idx in range(int(run_epochs)):
 
     max_time_steps = stft_batch.shape[1]
     final_state_value = sess.run(init_state)
+    batchLossSum = 0            # Sum of batch losses in one index.
 
     for time_seq in range(max_time_steps):
         feed_dict = {
@@ -217,20 +219,25 @@ for idx in range(int(run_epochs)):
             init_state: final_state_value,
             sequence_length_tensor: sequence_length_id[:, time_seq]
         }
-        _, loss_value, final_state_value, rnn_outputs_val = sess.run(
-            [train_optimizer, mse_loss, final_state, rnn_outputs], feed_dict=feed_dict)
+        _, loss_value, final_state_value, rnn_outputs_val = sess.run([train_optimizer, mse_loss, final_state, rnn_outputs], feed_dict=feed_dict)
 
-        print("Batch Loss: " + str(loss_value))
-        print(np.min(rnn_outputs_val), np.min(clean_voice_batch[:, time_seq, :, :]))
+        print("Index " + str(idx + 1) + " in " + str(run_epochs))
+        print("\tBatch Loss:\t" + str(loss_value * 10000))          # Multiplied 10000 to show the batch losses obviously.
+        batchLossSum = batchLossSum + loss_value
+        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)))
+        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])))
 
-        print(idx)
-        print(run_epochs)
+    print("Index " + str(idx + 1) + " Batch Loss Avg: " + str(batchLossSum / max_time_steps * 10000) + "\n")
 
-    if ((idx % (run_epochs) / 10) == 0):
-        print(" \n Cumulative epochs loss: " + str(loss_value))
+    globalBatchLossSum = globalBatchLossSum + batchLossSum
+    globalStepsSum = globalStepsSum + max_time_steps
+
+    if (idx % 3000 == 0):
+        # All batch losses sum divide global steps to get Avg
+        print("\n\t\tCumulative epochs loss Avg in " + str(globalStepsSum) + " steps: " + str((globalBatchLossSum / globalStepsSum) * 10000))
         os.chdir(checkpoints)
         saver.save(sess, './ssep_model.ckpt', global_step=idx)
-        print("Saved checkpoint")
+        print("\t\tSaved checkpoint\n")
         os.chdir(traindata)
 
 os.chdir(checkpoints)
