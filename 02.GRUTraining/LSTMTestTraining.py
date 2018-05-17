@@ -44,11 +44,10 @@ def sequentialized_spectrum(batch, maximum_length):
 
         # Break up the spectrum in sequence_length sized data
         run_full_steps = float(len(t)) / sequence_length
-        run_length = int(math.floor(run_full_steps))
-        run_total = run_length + 1
+        run_total = int(math.ceil(run_full_steps))
 
         # Run a loop long enough to break up all the data in the file into chunks of sequence_size
-        for step in range(int(run_total)):
+        for step in range(run_total):
 
             begin_point = step * sequence_length
             end_point = begin_point + sequence_length
