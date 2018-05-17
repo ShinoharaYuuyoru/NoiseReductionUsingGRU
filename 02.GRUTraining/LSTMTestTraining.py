@@ -20,26 +20,35 @@ def formatFilename(filename):
 
 def create_final_sequence(sequence, max_length):
     a, b = sequence.shape
-    null_mat = []
     extra_len = max_length - b
     null_mat = np.zeros((len(sequence), extra_len), dtype=np.float32)
     sequence = np.concatenate((sequence, null_mat), axis=1)
     return sequence
 
 
-def sequentialized_spectrum(batch, maximum_length):
+def sequentialized_spectrum(batch):
+    # Get maximum length of batch
+    t = []
+    t_vec = []
+    Sxx_Vec = []
+    for each in batch:
+        _, t, Sxx_Vec_Temp = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
+        t_vec.append(t)
+        Sxx_Vec.append(Sxx_Vec_Temp)
+    maximum_length = findMaxlen(t_vec)
+
     max_run_total = int(math.ceil(float(maximum_length) / sequence_length))
     final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length])
     true_time = np.zeros([len(batch), max_run_total])
 
     # Read in a file and compute spectrum
-    for batch_idx, each_set in enumerate(batch):
-
-        f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
+    # for batch_idx, each_set in enumerate(batch):
+    for batch_idx, Sxx in enumerate(Sxx_Vec):
+        # f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
 
         # Magnitude and Phase Spectra
         Mag = norm_factor * Sxx.real
-        # Mag = Sxx.real
+        t = t_vec[batch_idx]
         # Phase = Sxx.imag
 
         # Break up the spectrum in sequence_length sized data
@@ -75,14 +84,14 @@ def findMaxlen(data_vec):
     return max_
 
 
-def perfSeqSpectrum(batch):
-    t_vec = []
-
-    for each in batch:
-        _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
-        t_vec.append(t)
-
-    return sequentialized_spectrum(batch, findMaxlen(t_vec))
+# def perfSeqSpectrum(batch):
+#     t_vec = []
+#
+#     for each in batch:
+#         _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
+#         t_vec.append(t)
+#
+#     return sequentialized_spectrum(batch, findMaxlen(t_vec))
 
 
 # ----------------- Begin Vars --------------------- #
@@ -102,7 +111,7 @@ stft_size = 1024
 sequence_length = 100
 batch_size = 10
 learning_rate = 0.1
-epochs = 300
+epochs = 30
 # number_of_layers = 3
 
 # Tensorflow vars + Graph and LSTM Params
@@ -127,7 +136,7 @@ clean_files_fin_vec = []
 clean_files_vec = []
 
 # Graph
-lstm_cell = tf.contrib.rnn.BasicLSTMCell(stft_size)
+lstm_cell = tf.contrib.rnn.BasicLSTMCell(stft_size, forget_bias = 1.0, state_is_tuple = True)
 # stacked_lstm = tf.contrib.rnn.MultiRNNCell([[lstm_cell] for i in number_of_layers])
 init_state = lstm_cell.zero_state(batch_size, tf.float32)
 rnn_outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, input_data, sequence_length=sequence_length_tensor, initial_state=init_state, time_major=False)
@@ -199,11 +208,8 @@ for idx in range(int(run_epochs)):
         files_vec.append(file_repository[i])
         clean_files_fin_vec.append(clean_repository[i])
 
-    stft_batch = []
-    clean_voice_batch = []
-
-    stft_batch, sequence_length_id, maximum_length = perfSeqSpectrum(files_vec)
-    clean_voice_batch, sequence_length_id_clean, maximum_length_clean = perfSeqSpectrum(clean_files_fin_vec)
+    stft_batch, sequence_length_id, maximum_length = sequentialized_spectrum(files_vec)
+    clean_voice_batch, sequence_length_id_clean, maximum_length_clean = sequentialized_spectrum(clean_files_fin_vec)
 
     # ------------------- Step 2: Feed Data to Placeholders, and then, Initialise, Train and Save the Graph  --------------------- #
 
