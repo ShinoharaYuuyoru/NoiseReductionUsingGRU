@@ -195,6 +195,7 @@ sess.run(init_op)
 
 globalBatchLossSum = 0          # Sum of all batch losses
 globalStepsSum = 0          # Sum of all steps
+lastCumulativeLossAvg = 100           # Last Cumulative Loss Avg.
 
 for idx in range(int(run_epochs)):
 
@@ -239,9 +240,17 @@ for idx in range(int(run_epochs)):
 
     if ((idx + 1) % (run_epochs / 10) == 0):
         # All batch losses sum divide global steps to get Avg
-        print("\n\t\tCumulative epochs loss Avg in latest" + str((idx + 1) % (run_epochs / 10)) + " indexes:\t" + str((globalBatchLossSum / globalStepsSum) * 32768))
+        cumulativLossAvg = globalBatchLossSum / globalStepsSum
+        print("\n\t\tCumulative epochs loss Avg in latest" + str((idx + 1) % (run_epochs / 10)) + " indexes:\t" + str(cumulativLossAvg * 32768))
+        if(cumulativLossAvg <= lastCumulativeLossAvg):
+            lastCumulativeLossAvg = cumulativLossAvg            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
+        else:
+            learning_rate = learning_rate / 2           # If cumulative loss avg is bigger than last avg, than change learning rate to half
+            lastCumulativeLossAvg = cumulativLossAvg
+            print("\n\t\tLearning Rate changed to: " + str(learning_rate))
         globalBatchLossSum = 0          # Initialize to 0, for next indexes batch loss calculation
         globalStepsSum = 0
+
         os.chdir(checkpoints)
         saver.save(sess, './ssep_model.ckpt', global_step=idx)
         print("\t\tSaved checkpoint\n")
