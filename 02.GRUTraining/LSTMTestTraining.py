@@ -102,7 +102,7 @@ stft_size = 1024
 sequence_length = 100
 batch_size = 10
 learning_rate = 0.001
-epochs = 100
+epochs = 250
 # number_of_layers = 3
 
 # Tensorflow vars + Graph and LSTM Params
@@ -229,7 +229,10 @@ for idx in range(int(run_epochs)):
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
 
-    if (int((idx + 1) % (run_epochs / 10)) == 0):
+    if(idx == 0):
+        lastCumulativeLossAvg = globalBatchLossSum / globalStepsSum
+
+    if (int((idx + 1) % no_of_files) == 0):
         # All batch losses sum divide global steps to get Avg
         cumulativLossAvg = globalBatchLossSum / globalStepsSum
         print("\n\t\tCumulative epochs loss Avg in latest " + str(idx + 1) + " indexes:\t" + str(cumulativLossAvg * 32768))
