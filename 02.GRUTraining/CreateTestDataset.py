@@ -9,7 +9,7 @@ import shutil
 move_no_files = 1000
 
 work_path = os.getcwd()+"/Training/NoiseAdded/"
-test_files_path = os.getcwd()+"/Wavs/"
+test_files_path = os.getcwd()+"/Testing/NoiseAdded/"
 
 src_files = (os.listdir(work_path))
 
@@ -23,4 +23,4 @@ for files in choices:
     shutil.move(files, test_files_path)
     print("Moved: " + str(files))
 
-print("Finished!")
+print("\nFinished!")

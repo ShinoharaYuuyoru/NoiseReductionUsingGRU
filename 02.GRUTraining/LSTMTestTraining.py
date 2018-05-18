@@ -85,16 +85,6 @@ def findMaxlen(data_vec):
     return max_
 
 
-# def perfSeqSpectrum(batch):
-#     t_vec = []
-#
-#     for each in batch:
-#         _, t, _ = signal.stft(each, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
-#         t_vec.append(t)
-#
-#     return sequentialized_spectrum(batch, findMaxlen(t_vec))
-
-
 # ----------------- Begin Vars --------------------- #
 
 # Training data directories
