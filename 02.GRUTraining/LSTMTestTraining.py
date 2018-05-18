@@ -111,7 +111,7 @@ stft_size = 1024
 sequence_length = 100
 batch_size = 10
 learning_rate = 0.001
-epochs = 30
+epochs = 100
 # number_of_layers = 3
 
 # Tensorflow vars + Graph and LSTM Params
@@ -225,12 +225,12 @@ for idx in range(int(run_epochs)):
         }
         _, loss_value, final_state_value, rnn_outputs_val = sess.run([train_optimizer, mse_loss, final_state, rnn_outputs], feed_dict=feed_dict)
 
-        print("Index " + str(idx + 1) + " in " + str(run_epochs))
-        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)))
-        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])))
-        print("\tOutput Max:\t" + str(np.max(rnn_outputs_val)))
-        print("\tClean Max:\t" + str(np.max(clean_voice_batch[:, time_seq, :, :])))
-        print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 10000 to show the batch losses obviously.
+        # print("Index " + str(idx + 1) + " in " + str(run_epochs))
+        # print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)))
+        # print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])))
+        # print("\tOutput Max:\t" + str(np.max(rnn_outputs_val)))
+        # print("\tClean Max:\t" + str(np.max(clean_voice_batch[:, time_seq, :, :])))
+        # print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 32768 to show the batch losses obviously.
         batchLossSum = batchLossSum + loss_value
 
     print("\t\tIndex " + str(idx + 1) + " Batch Loss Avg:\t" + str(batchLossSum / max_time_steps * 32768) + "\n")
@@ -238,14 +238,14 @@ for idx in range(int(run_epochs)):
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
 
-    if ((idx + 1) % (run_epochs / 10) == 0):
+    if (int((idx + 1) % (run_epochs / 10)) == 0):
         # All batch losses sum divide global steps to get Avg
         cumulativLossAvg = globalBatchLossSum / globalStepsSum
-        print("\n\t\tCumulative epochs loss Avg in latest" + str((idx + 1) % (run_epochs / 10)) + " indexes:\t" + str(cumulativLossAvg * 32768))
+        print("\n\t\tCumulative epochs loss Avg in latest " + str(idx + 1) + " indexes:\t" + str(cumulativLossAvg * 32768))
         if(cumulativLossAvg <= lastCumulativeLossAvg):
             lastCumulativeLossAvg = cumulativLossAvg            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
         else:
-            learning_rate = learning_rate / 2           # If cumulative loss avg is bigger than last avg, than change learning rate to half
+            learning_rate = learning_rate / 5           # If cumulative loss avg is bigger than last avg, than change learning rate to 1/5
             lastCumulativeLossAvg = cumulativLossAvg
             print("\n\t\tLearning Rate changed to: " + str(learning_rate))
         globalBatchLossSum = 0          # Initialize to 0, for next indexes batch loss calculation
