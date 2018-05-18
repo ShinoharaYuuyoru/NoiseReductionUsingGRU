@@ -196,8 +196,6 @@ sess.run(init_op)
 globalBatchLossSum = 0          # Sum of all batch losses
 globalStepsSum = 0          # Sum of all steps
 
-# final_state_value = sess.run(init_state)
-
 for idx in range(int(run_epochs)):
 
     files_vec = []
@@ -227,19 +225,23 @@ for idx in range(int(run_epochs)):
         _, loss_value, final_state_value, rnn_outputs_val = sess.run([train_optimizer, mse_loss, final_state, rnn_outputs], feed_dict=feed_dict)
 
         print("Index " + str(idx + 1) + " in " + str(run_epochs))
+        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)))
+        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])))
+        print("\tOutput Max:\t" + str(np.max(rnn_outputs_val)))
+        print("\tClean Max:\t" + str(np.max(clean_voice_batch[:, time_seq, :, :])))
         print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 10000 to show the batch losses obviously.
         batchLossSum = batchLossSum + loss_value
-        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)) + ", Max: " + str(np.max(rnn_outputs_val)))
-        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])) + ", Max " + str(np.max(clean_voice_batch[:, time_seq, :, :])))
 
-    print("\tIndex " + str(idx + 1) + " Batch Loss Avg: " + str(batchLossSum / max_time_steps * 32768) + "\n")
+    print("\t\tIndex " + str(idx + 1) + " Batch Loss Avg:\t" + str(batchLossSum / max_time_steps * 32768) + "\n")
 
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
 
     if ((idx + 1) % (run_epochs / 10) == 0):
         # All batch losses sum divide global steps to get Avg
-        print("\n\t\tCumulative epochs loss Avg in " + str(globalStepsSum) + " steps: " + str((globalBatchLossSum / globalStepsSum) * 32768))
+        print("\n\t\tCumulative epochs loss Avg in latest" + str((idx + 1) % (run_epochs / 10)) + " indexes:\t" + str((globalBatchLossSum / globalStepsSum) * 32768))
+        globalBatchLossSum = 0          # Initialize to 0, for next indexes batch loss calculation
+        globalStepsSum = 0
         os.chdir(checkpoints)
         saver.save(sess, './ssep_model.ckpt', global_step=idx)
         print("\t\tSaved checkpoint\n")
