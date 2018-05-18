@@ -47,7 +47,7 @@ def sequentialized_spectrum(batch):
         # f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
 
         # Magnitude and Phase Spectra
-        Mag = norm_factor * Sxx.real
+        Mag = Sxx.real
         t = t_vec[batch_idx]
         # Phase = Sxx.imag
 
@@ -102,7 +102,7 @@ voicedata = os.getcwd() + "/Training/HumanVoices/"
 checkpoints = os.getcwd() + "/TF_Checkpoints/"
 
 # NormConstant
-norm_factor = (1 / 10000.0)
+norm_factor = (1 / 32768.0)
 
 # Spectrogram Parameters
 stft_size = 1024
@@ -110,7 +110,7 @@ stft_size = 1024
 # RNN Specs
 sequence_length = 100
 batch_size = 10
-learning_rate = 0.1
+learning_rate = 0.001
 epochs = 30
 # number_of_layers = 3
 
@@ -140,11 +140,11 @@ lstm_cell = tf.contrib.rnn.BasicLSTMCell(stft_size, forget_bias = 1.0, state_is_
 # stacked_lstm = tf.contrib.rnn.MultiRNNCell([[lstm_cell] for i in number_of_layers])
 init_state = lstm_cell.zero_state(batch_size, tf.float32)
 rnn_outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, input_data, sequence_length=sequence_length_tensor, initial_state=init_state, time_major=False)
-mse_loss = tf.losses.mean_squared_error(clean_data, rnn_outputs)
-train_optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(mse_loss)
+mse_loss = tf.losses.mean_squared_error(rnn_outputs, clean_data)
+# train_optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(mse_loss)
 # train_optimizer = tf.train.AdagradOptimizer(learning_rate).minimize(mse_loss)
 # train_optimizer = tf.train.AdagradDAOptimizer(learning_rate).minimize(mse_loss)
-# train_optimizer = tf.train.AdamOptimizer(learning_rate).minimize(mse_loss)
+train_optimizer = tf.train.AdamOptimizer(learning_rate).minimize(mse_loss)
 saver = tf.train.Saver()
 
 # ------------------- Read all data to memory creating a repository of mixture and clean files --------------------- #
@@ -196,6 +196,8 @@ sess.run(init_op)
 globalBatchLossSum = 0          # Sum of all batch losses
 globalStepsSum = 0          # Sum of all steps
 
+# final_state_value = sess.run(init_state)
+
 for idx in range(int(run_epochs)):
 
     files_vec = []
@@ -205,8 +207,8 @@ for idx in range(int(run_epochs)):
     # Select batch_size no. of random number of files from file_repository and the corresponding clean files
     for file_iter in range(batch_size):
         i = random.randint(0, len(file_repository) - 1)
-        files_vec.append(file_repository[i])
-        clean_files_fin_vec.append(clean_repository[i])
+        files_vec.append(file_repository[i] * norm_factor)
+        clean_files_fin_vec.append(clean_repository[i] * norm_factor)
 
     stft_batch, sequence_length_id, maximum_length = sequentialized_spectrum(files_vec)
     clean_voice_batch, sequence_length_id_clean, maximum_length_clean = sequentialized_spectrum(clean_files_fin_vec)
@@ -214,32 +216,30 @@ for idx in range(int(run_epochs)):
     # ------------------- Step 2: Feed Data to Placeholders, and then, Initialise, Train and Save the Graph  --------------------- #
 
     max_time_steps = stft_batch.shape[1]
-    final_state_value = sess.run(init_state)
     batchLossSum = 0            # Sum of batch losses in one index.
 
     for time_seq in range(max_time_steps):
         feed_dict = {
             input_data: stft_batch[:, time_seq, :, :],
             clean_data: clean_voice_batch[:, time_seq, :, :],
-            init_state: final_state_value,
             sequence_length_tensor: sequence_length_id[:, time_seq]
         }
         _, loss_value, final_state_value, rnn_outputs_val = sess.run([train_optimizer, mse_loss, final_state, rnn_outputs], feed_dict=feed_dict)
 
         print("Index " + str(idx + 1) + " in " + str(run_epochs))
-        print("\tBatch Loss:\t" + str(loss_value * 10000))          # Multiplied 10000 to show the batch losses obviously.
+        print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 10000 to show the batch losses obviously.
         batchLossSum = batchLossSum + loss_value
-        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)))
-        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])))
+        print("\tOutput Min:\t" + str(np.min(rnn_outputs_val)) + ", Max: " + str(np.max(rnn_outputs_val)))
+        print("\tClean Min:\t" + str(np.min(clean_voice_batch[:, time_seq, :, :])) + ", Max " + str(np.max(clean_voice_batch[:, time_seq, :, :])))
 
-    print("Index " + str(idx + 1) + " Batch Loss Avg: " + str(batchLossSum / max_time_steps * 10000) + "\n")
+    print("\tIndex " + str(idx + 1) + " Batch Loss Avg: " + str(batchLossSum / max_time_steps * 32768) + "\n")
 
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
 
-    if (idx % 3000 == 0):
+    if ((idx + 1) % (run_epochs / 10) == 0):
         # All batch losses sum divide global steps to get Avg
-        print("\n\t\tCumulative epochs loss Avg in " + str(globalStepsSum) + " steps: " + str((globalBatchLossSum / globalStepsSum) * 10000))
+        print("\n\t\tCumulative epochs loss Avg in " + str(globalStepsSum) + " steps: " + str((globalBatchLossSum / globalStepsSum) * 32768))
         os.chdir(checkpoints)
         saver.save(sess, './ssep_model.ckpt', global_step=idx)
         print("\t\tSaved checkpoint\n")
