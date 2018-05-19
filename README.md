@@ -1,6 +1,6 @@
 # NoiseReductionUsingGRU
 
-Title: Noise Reduction Using GRU.
+Title: Noise Reduction Using GRU(RNN).
 
 This is my graduation project in BIT, 2018.
 
