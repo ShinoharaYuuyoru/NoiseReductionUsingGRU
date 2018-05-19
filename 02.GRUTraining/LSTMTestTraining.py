@@ -229,9 +229,6 @@ for idx in range(int(run_epochs)):
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
 
-    if(idx == 0):
-        lastCumulativeLossAvg = globalBatchLossSum / globalStepsSum
-
     if (int((idx + 1) % no_of_files) == 0):
         # All batch losses sum divide global steps to get Avg
         cumulativLossAvg = globalBatchLossSum / globalStepsSum
