@@ -12,8 +12,11 @@ import tensorflow as tf
 import math
 
 # Get the source Human Voice file names by Noise Added file names.
-def formatFilename(filename):
+def formatSrcFilename(filename):
     return filename[:len(filename) - 11] + "_voice.wav"
+
+def formatOutputFilename(filename):
+    return filename[:len(filename) - 11] + "_output.wav"
 
 def sequentialized_spectrum(batch):
     # Get maximum length of batch
@@ -82,6 +85,7 @@ def create_final_sequence(sequence, max_length):
 humanVoice = os.getcwd() + "/Training/HumanVoices/"
 testData = os.getcwd() + "/Testing/NoiseAdded/"
 modelOutput = os.getcwd() + "/Testing/ModelOutput/"
+graphPath = os.getcwd() + "/TF_Checkpoints/FINAL.ckpt"
 
 # Number of test files
 testFileNum = 0
@@ -89,12 +93,15 @@ testFileNum = 0
 # File List
 testNAFileList = []         # Test Dataset. Noise Added File List.
 srcHVFileList = []          # Source Human Voice File List.
+outputFileList = []         # Output File List
 
 # File Repository
 testNARateRepository = []
 testNADataRepository = []
 srcHVRateRepository = []
 srcHVDataRepository = []
+
+norm_factor = (1.0 / 32768.0)         # Let data map to -1 ~ 1 range for LSTM process
 
 # Walk all test NA files to File List and File Repository.
 for root, _, files in os.walk(testData):
@@ -106,9 +113,10 @@ for root, _, files in os.walk(testData):
             testNAFileList.append(f)
             rate, data = wav.read(os.path.join(root, f))
             testNARateRepository.append(rate)
-            testNADataRepository.append(data)
+            testNADataRepository.append(data * norm_factor)
 
-srcHVFileList = list(map(formatFilename, testNAFileList))
+srcHVFileList = list(map(formatSrcFilename, testNAFileList))
+outputFileList = list(map(formatOutputFilename, testNAFileList))
 
 # Walk all source HV files to File Repository.
 for root, _, files in os.walk(humanVoice):
@@ -120,17 +128,12 @@ for root, _, files in os.walk(humanVoice):
                 if f == name:
                     rate, data = wav.read(os.path.join(root, f))
                     srcHVRateRepository.append(rate)
-                    srcHVDataRepository.append(data)
+                    srcHVDataRepository.append(data * norm_factor)
 
 # STFT Process Variables, also used in LSTM
 sequence_length = 100
 stft_size = 1024
-norm_factor = (1.0 / 32768.0)         # Let data map to -1 ~ 1 range for LSTM process
-batch_size = 1
-
-# Get NA stft repository
-testNADataRepository_STFT, sequenceLengthID, maxLength = sequentialized_spectrum(testNADataRepository * norm_factor)
-
+batch_size = 1          # Set 1 for process 1 Wav file a time.
 
 # Tensorflow vars + Graph and LSTM Params
 input_data = tf.placeholder(tf.float32, [None, sequence_length, stft_size])
@@ -148,3 +151,59 @@ rnn_outputs, final_state = tf.nn.dynamic_rnn(lstm_cell, input_data, sequence_len
 # train_optimizer = tf.train.AdagradDAOptimizer(learning_rate).minimize(mse_loss)
 # train_optimizer = tf.train.AdamOptimizer(learning_rate).minimize(mse_loss)
 saver = tf.train.Saver()
+
+# Initialize TF Graph and Restore the Graph
+init_op = tf.global_variables_initializer()  # initialize_all_variables()
+gpu_options = tf.GPUOptions(allow_growth = True)            # Set session GPU using growing.
+sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_options))
+sess.run(init_op)
+saver.restore(sess, graphPath)
+print("\t***** TF GRAPH RESTORED *****")
+
+# Start Processing
+for idx in range(testFileNum):
+    nowNAFile = []
+    nowNAFile.append(testNADataRepository[idx])
+
+    # Get NA stft repository.
+    nowNAData_STFT, sequenceLengthID, maxLength = sequentialized_spectrum(nowNAFile)
+
+    # Get Time Steps.
+    maxTimeSteps = len(nowNAData_STFT[0])
+
+    # Define outputData List to contain rnn_outputs_value.
+    outputData = np.zeros([1,  maxTimeSteps, stft_size, sequence_length])           # Transpose, [0, 1, 3, 2]
+
+    for timeStep in range(maxTimeSteps):
+        feed_dict = {
+            input_data : nowNAData_STFT[:, timeStep, :],
+            sequence_length_tensor : sequenceLengthID[:, timeStep]
+        }
+        final_state_value, rnn_outputs_value = sess.run([final_state, rnn_outputs], feed_dict=feed_dict)
+
+        rnn_outputs_value = np.transpose(rnn_outputs_value, [0, 2, 1])
+        outputData[0][timeStep] = rnn_outputs_value
+
+    # Define outputData_STFT, link outputData List by timeStep in 1 dimension.
+    outputData_STFT = np.zeros([stft_size, maxLength])
+    beginTime = 0
+    endTime = 0
+    for timeStep in range(maxTimeSteps):
+        if(timeStep < maxTimeSteps - 1):
+            endTime = beginTime + sequence_length
+            outputData_STFT[:, beginTime : endTime] = outputData[0, timeStep, :, :]
+        else:
+            endTime = beginTime + int(sequenceLengthID[0, timeStep])
+            outputData_STFT[:, beginTime : endTime] = outputData[0, timeStep, :, 0 : (endTime - beginTime)]
+
+        beginTime = beginTime + sequence_length
+
+    # Compute ISTFT
+    _, outputData_ISTFT = signal.istft(outputData_STFT, fs=testNARateRepository[0], nperseg=stft_size, input_onesided = False)
+
+    outputData_ISTFT = (outputData_ISTFT / norm_factor).real
+    outputData_ISTFT = outputData_ISTFT.astype(np.int16)
+
+    wav.write(modelOutput + outputFileList[idx], testNARateRepository[idx], outputData_ISTFT)
+    print("Index: " + str(idx))
+    print("\tOutput File: " + str(outputFileList[idx]))
