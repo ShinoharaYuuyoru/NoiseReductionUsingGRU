@@ -101,7 +101,7 @@ stft_size = 1024
 # RNN Specs
 sequence_length = 100
 batch_size = 10
-learning_rate = 0.001
+learning_rate = 0.0005
 epochs = 250
 number_of_layers = 3
 
@@ -186,8 +186,8 @@ sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_options))
 sess.run(init_op)
 
 globalBatchLossSum = 0          # Sum of all batch losses
-globalStepsSum = 0          # Sum of all steps
-lastCumulativeLossAvg = 100           # Last Cumulative Loss Avg.
+# globalStepsSum = 0          # Sum of all steps
+lastCumulativeLossSum = 99999           # Last Cumulative Loss Sum.
 
 for idx in range(int(run_epochs)):
 
@@ -225,23 +225,24 @@ for idx in range(int(run_epochs)):
         # print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 32768 to show the batch losses obviously.
         batchLossSum = batchLossSum + loss_value
 
-    print("\t\tIndex " + str(idx + 1) + " Batch Loss Avg:\t" + str(batchLossSum / max_time_steps / norm_factor) + "\n")
+    print("Index " + str(idx + 1) + "/" + str(run_epochs) + " Batch Loss Sum:\t" + str(batchLossSum / norm_factor) + "\n")
 
     globalBatchLossSum = globalBatchLossSum + batchLossSum
-    globalStepsSum = globalStepsSum + max_time_steps
+    # globalStepsSum = globalStepsSum + max_time_steps
 
     if (int((idx + 1) % no_of_files) == 0):
         # All batch losses sum divide global steps to get Avg
-        cumulativLossAvg = globalBatchLossSum / globalStepsSum
-        print("\n\t\tCumulative epochs loss Avg in latest " + str(idx + 1) + " indexes:\t" + str(cumulativLossAvg / norm_factor))
-        if(cumulativLossAvg <= lastCumulativeLossAvg):
-            lastCumulativeLossAvg = cumulativLossAvg            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
+        # cumulativLossAvg = globalBatchLossSum / globalStepsSum
+        cumulativeLossSum = globalBatchLossSum
+        print("\n\t\tCumulative epochs loss Sum in latest " + str(idx + 1) + " indexes:\t" + str(cumulativeLossSum / norm_factor))
+        if(cumulativeLossSum < lastCumulativeLossSum):
+            lastCumulativeLossSum = cumulativeLossSum            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
         else:
             learning_rate = learning_rate / 5           # If cumulative loss avg is bigger than last avg, than change learning rate to 1/5
-            lastCumulativeLossAvg = cumulativLossAvg
+            lastCumulativeLossSum = cumulativeLossSum
             print("\n\t\tLearning Rate changed to: " + str(learning_rate))
         globalBatchLossSum = 0          # Initialize to 0, for next indexes batch loss calculation
-        globalStepsSum = 0
+        # globalStepsSum = 0
 
         os.chdir(checkpoints)
         saver.save(sess, './ssep_model.ckpt', global_step=idx)
