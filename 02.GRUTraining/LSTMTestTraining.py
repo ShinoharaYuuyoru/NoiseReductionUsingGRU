@@ -224,7 +224,7 @@ for idx in range(int(run_epochs)):
         # print("\tBatch Loss:\t" + str(loss_value * 32768))          # Multiplied 32768 to show the batch losses obviously.
         batchLossSum = batchLossSum + loss_value
 
-    print("\t\tIndex " + str(idx + 1) + " Batch Loss Avg:\t" + str(batchLossSum / max_time_steps * 32768) + "\n")
+    print("\t\tIndex " + str(idx + 1) + " Batch Loss Avg:\t" + str(batchLossSum / max_time_steps / norm_factor) + "\n")
 
     globalBatchLossSum = globalBatchLossSum + batchLossSum
     globalStepsSum = globalStepsSum + max_time_steps
@@ -232,7 +232,7 @@ for idx in range(int(run_epochs)):
     if (int((idx + 1) % no_of_files) == 0):
         # All batch losses sum divide global steps to get Avg
         cumulativLossAvg = globalBatchLossSum / globalStepsSum
-        print("\n\t\tCumulative epochs loss Avg in latest " + str(idx + 1) + " indexes:\t" + str(cumulativLossAvg * 32768))
+        print("\n\t\tCumulative epochs loss Avg in latest " + str(idx + 1) + " indexes:\t" + str(cumulativLossAvg / norm_factor))
         if(cumulativLossAvg <= lastCumulativeLossAvg):
             lastCumulativeLossAvg = cumulativLossAvg            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
         else:
