@@ -171,7 +171,9 @@ for root, _, files in os.walk(voicedata):
             for name in clean_files_vec:
                 if each == name:
                     srate2, data2 = wav.read(os.path.join(root, name))
-                    clean_repository.append(data2)
+                    # In Create Noise Adding Dataset, the NA audio is 0.75*Source + 0.25*Noise.
+                    # So we need let clean data*0.75.
+                    clean_repository.append(data2 * 0.75)
 
 # ------------------- Step 1: Prepare data in batches and perform STFTs --------------------- #
 
