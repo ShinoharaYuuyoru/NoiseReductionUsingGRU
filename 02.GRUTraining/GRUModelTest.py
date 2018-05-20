@@ -203,7 +203,7 @@ for idx in range(testFileNum):
     # Compute ISTFT
     _, outputData_ISTFT = signal.istft(outputData_STFT, fs=testNARateRepository[0], nperseg=stft_size, input_onesided = False)
 
-    outputData_ISTFT = (outputData_ISTFT / norm_factor).real
+    outputData_ISTFT = ((outputData_ISTFT / norm_factor).real) / 0.75
     outputData_ISTFT = outputData_ISTFT.astype(np.int16)
 
     wav.write(modelOutput + outputFileList[idx], testNARateRepository[idx], outputData_ISTFT)
