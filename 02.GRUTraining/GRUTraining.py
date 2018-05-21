@@ -39,8 +39,8 @@ def sequentialized_spectrum(batch):
     maximum_length = findMaxlen(t_vec)
 
     max_run_total = int(math.ceil(float(maximum_length) / sequence_length))
-    final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length])
-    true_time = np.zeros([len(batch), max_run_total])
+    final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length], dtype=np.float32)
+    true_time = np.zeros([len(batch), max_run_total], dtype=np.int32)
 
     # Read in a file and compute spectrum
     # for batch_idx, each_set in enumerate(batch):
@@ -48,9 +48,27 @@ def sequentialized_spectrum(batch):
         # f, t, Sxx = signal.stft(each_set, fs=rate_repository[0], nperseg=stft_size, return_onesided = False)
 
         # Magnitude and Phase Spectra
-        Mag = Sxx.real
+        # Mag = Sxx.real
+        Mag = Sxx.imag          # Get imaginary part of Sxx. This will try to get a imaginary model.
         t = t_vec[batch_idx]
-        # Phase = Sxx.imag
+
+        # # TESTING
+        # _, outputData_ISTFT = signal.istft(Mag, fs=rate_repository[0], nperseg=stft_size,
+        #                                    input_onesided=False)
+        #
+        # outputData_ISTFT = ((outputData_ISTFT / norm_factor).real) / 0.75
+        # outputData_ISTFT = outputData_ISTFT.astype(np.int16)
+        #
+        # wav.write("0.TEST_REAL.wav", rate_repository[idx], outputData_ISTFT)
+        #
+        # _, outputData_ISTFT = signal.istft(Sxx, fs=rate_repository[0], nperseg=stft_size,
+        #                                    input_onesided=False)
+        #
+        # outputData_ISTFT = ((outputData_ISTFT / norm_factor).real) / 0.75
+        # outputData_ISTFT = outputData_ISTFT.astype(np.int16)
+        #
+        # wav.write("0.TEST_ORIG.wav", rate_repository[idx], outputData_ISTFT)
+        # # TESTING END
 
         # Break up the spectrum in sequence_length sized data
         run_full_steps = float(len(t)) / sequence_length
@@ -127,10 +145,10 @@ clean_files_fin_vec = []
 clean_files_vec = []
 
 # Graph
-gru_cell = tf.contrib.rnn.GRUCell(stft_size)
-gru_cell = tf.contrib.rnn.DropoutWrapper(gru_cell, output_keep_prob = 0.5)
+gru_cell = tf.contrib.rnn.GRUCell(stft_size, kernel_initializer = tf.zeros_initializer(dtype = tf.float32))
+gru_cell = tf.contrib.rnn.DropoutWrapper(gru_cell, dtype = tf.float32, output_keep_prob = 0.5)
 stacked_gru = tf.contrib.rnn.MultiRNNCell([gru_cell] * number_of_layers, state_is_tuple=True)
-init_state = stacked_gru.zero_state(batch_size, tf.float32)
+init_state = stacked_gru.zero_state(batch_size, dtype=tf.float32)
 rnn_outputs, final_state = tf.nn.dynamic_rnn(stacked_gru, input_data, sequence_length=sequence_length_tensor, initial_state=init_state, time_major=False)
 mse_loss = tf.losses.mean_squared_error(rnn_outputs, clean_data)
 # train_optimizer = tf.train.GradientDescentOptimizer(learning_rate).minimize(mse_loss)
@@ -236,7 +254,7 @@ for idx in range(int(run_epochs)):
         # All batch losses sum divide global steps to get Avg
         # cumulativLossAvg = globalBatchLossSum / globalStepsSum
         cumulativeLossSum = globalBatchLossSum
-        print("\n\t\tCumulative epochs loss Sum in latest " + str(idx + 1) + " indexes:\t" + str(cumulativeLossSum / norm_factor))
+        print("\n\t\tCumulative epochs loss Sum in latest " + str(no_of_files) + " indexes:\t" + str(cumulativeLossSum / norm_factor))
         if(cumulativeLossSum < lastCumulativeLossSum):
             lastCumulativeLossSum = cumulativeLossSum            # If cumulative loss avg is smaller or equal to last avg, stay learning rate
         else:
