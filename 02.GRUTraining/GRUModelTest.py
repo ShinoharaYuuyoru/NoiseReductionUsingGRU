@@ -30,8 +30,8 @@ def sequentialized_spectrum(batch):
     maximum_length = findMaxlen(t_vec)
 
     max_run_total = int(math.ceil(float(maximum_length) / sequence_length))
-    final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length])
-    true_time = np.zeros([len(batch), max_run_total])
+    final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length], dtype=np.float32)
+    true_time = np.zeros([len(batch), max_run_total], dtype=np.int32)
 
     # Read in a file and compute spectrum
     # for batch_idx, each_set in enumerate(batch):
@@ -142,8 +142,8 @@ input_data = tf.placeholder(tf.float32, [None, sequence_length, stft_size])
 sequence_length_tensor = tf.placeholder(tf.int32, (None))
 
 # TF Graph Definition
-gru_cell = tf.contrib.rnn.GRUCell(stft_size)
-# gru_cell = tf.contrib.rnn.DropoutWrapper(gru_cell, output_keep_prob = 0.5)            # Cancel Dropout
+gru_cell = tf.contrib.rnn.GRUCell(stft_size, kernel_initializer = tf.zeros_initializer(dtype = tf.float32))
+# gru_cell = tf.contrib.rnn.DropoutWrapper(gru_cell, dtype = tf.float32, output_keep_prob = 0.5)            # Cancel Dropout
 stacked_gru = tf.contrib.rnn.MultiRNNCell([gru_cell] * number_of_layers, state_is_tuple=True)
 init_state = stacked_gru.zero_state(batch_size, tf.float32)
 rnn_outputs, final_state = tf.nn.dynamic_rnn(stacked_gru, input_data, sequence_length=sequence_length_tensor, initial_state=init_state, time_major=False)
