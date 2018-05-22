@@ -31,6 +31,7 @@ def sequentialized_spectrum(batch):
 
     max_run_total = int(math.ceil(float(maximum_length) / sequence_length))
     final_data = np.zeros([len(batch), max_run_total, stft_size, sequence_length], dtype=np.float32)
+    final_data_imag = np.zeros([len(batch), max_run_total, stft_size, sequence_length], dtype=np.float32)
     true_time = np.zeros([len(batch), max_run_total], dtype=np.int32)
 
     # Read in a file and compute spectrum
@@ -40,6 +41,7 @@ def sequentialized_spectrum(batch):
 
         # Magnitude and Phase Spectra
         Mag = Sxx.real
+        Mag_Imag = Sxx.imag
         t = t_vec[batch_idx]
         # Phase = Sxx.imag
 
@@ -58,14 +60,17 @@ def sequentialized_spectrum(batch):
             # Store each chunk sequentially in a new array, accounting for zero padding when close to the end of the file
             if n == sequence_length:
                 final_data[batch_idx, step, :, :] = np.copy(Mag[:, begin_point:end_point])
+                final_data_imag[batch_idx, step, :, :] = np.copy(Mag_Imag[:, begin_point:end_point])
                 true_time[batch_idx, step] = n
             else:
                 final_data[batch_idx, step, :, :] = np.copy(create_final_sequence(Mag[:, begin_point:end_point], sequence_length))
+                final_data_imag[batch_idx, step, :, :] = np.copy(create_final_sequence(Mag_Imag[:, begin_point:end_point], sequence_length))
                 true_time[batch_idx, step] = n
 
     final_data = np.transpose(final_data, (0, 1, 3, 2))
+    final_data_imag = np.transpose(final_data_imag, (0, 1, 3, 2))
 
-    return final_data, true_time, maximum_length
+    return final_data, final_data_imag, true_time, maximum_length
 
 def findMaxlen(data_vec):
     max_ = 0
@@ -85,7 +90,8 @@ def create_final_sequence(sequence, max_length):
 humanVoice = os.getcwd() + "/Training/HumanVoices/"
 testData = os.getcwd() + "/Testing/NoiseAdded/"
 modelOutput = os.getcwd() + "/Testing/ModelOutput/"
-graphPath = os.getcwd() + "/TF_Checkpoints/FINAL.ckpt"
+graphPath_Real = os.getcwd() + "/TF_Checkpoints/FINAL_Real.ckpt"
+graphPath_Imag = os.getcwd() + "/TF_Checkpoints/FINAL_Imag.ckpt"
 
 # Number of test files
 testFileNum = 0
@@ -159,35 +165,60 @@ init_op = tf.global_variables_initializer()  # initialize_all_variables()
 gpu_options = tf.GPUOptions(allow_growth = True)            # Set session GPU using growing.
 sess = tf.Session(config = tf.ConfigProto(gpu_options = gpu_options))
 sess.run(init_op)
-saver.restore(sess, graphPath)
-print("\t***** TF GRAPH RESTORED *****")
 
 # Start Processing
 for idx in range(testFileNum):
+    print("Index: " + str(idx + 1))
+
+    # Read Real Part Graph
+    saver.restore(sess, graphPath_Real)
+    print("\t***** TF GRAPH REAL RESTORED *****")
+
     nowNAFile = []
     nowNAFile.append(testNADataRepository[idx])
 
     # Get NA stft repository.
-    nowNAData_STFT, sequenceLengthID, maxLength = sequentialized_spectrum(nowNAFile)
+    nowNAData_STFT_Real, nowNAData_STFT_Imag, sequenceLengthID, maxLength = sequentialized_spectrum(nowNAFile)
 
     # Get Time Steps.
-    maxTimeSteps = len(nowNAData_STFT[0])
+    maxTimeSteps = len(nowNAData_STFT_Real[0])
 
     # Define outputData List to contain rnn_outputs_value.
-    outputData = np.zeros([1,  maxTimeSteps, stft_size, sequence_length])           # Transpose, [0, 1, 3, 2]
+    outputData_Real = np.zeros([1,  maxTimeSteps, stft_size, sequence_length])           # Transpose, [0, 1, 3, 2]
 
     for timeStep in range(maxTimeSteps):
         feed_dict = {
-            input_data : nowNAData_STFT[:, timeStep, :],
+            input_data : nowNAData_STFT_Real[:, timeStep, :],
             sequence_length_tensor : sequenceLengthID[:, timeStep]
         }
         final_state_value, rnn_outputs_value = sess.run([final_state, rnn_outputs], feed_dict=feed_dict)
 
         rnn_outputs_value = np.transpose(rnn_outputs_value, [0, 2, 1])
-        outputData[0][timeStep] = rnn_outputs_value
+        outputData_Real[0][timeStep] = rnn_outputs_value
+
+
+    # Read Imag Part Graph
+    saver.restore(sess, graphPath_Imag)
+    print("\t***** TF GRAPH IMAG RESTORED *****")
+
+    outputData_Imag = np.zeros([1, maxTimeSteps, stft_size, sequence_length])  # Transpose, [0, 1, 3, 2]
+
+    for timeStep in range(maxTimeSteps):
+        feed_dict = {
+            input_data : nowNAData_STFT_Imag[:, timeStep, :],
+            sequence_length_tensor : sequenceLengthID[:, timeStep]
+        }
+        final_state_value, rnn_outputs_value = sess.run([final_state, rnn_outputs], feed_dict=feed_dict)
+
+        rnn_outputs_value = np.transpose(rnn_outputs_value, [0, 2, 1])
+        outputData_Imag[0][timeStep] = rnn_outputs_value
+
+
+    # outputData = np.zeros([1,  maxTimeSteps, stft_size, sequence_length], dtype=np.complex128)
+    outputData = np.vectorize(complex)(outputData_Real, outputData_Imag)
 
     # Define outputData_STFT, link outputData List by timeStep in 1 dimension.
-    outputData_STFT = np.zeros([stft_size, maxLength])
+    outputData_STFT = np.zeros([stft_size, maxLength], dtype=np.complex128)
     beginTime = 0
     endTime = 0
     for timeStep in range(maxTimeSteps):
@@ -207,5 +238,4 @@ for idx in range(testFileNum):
     outputData_ISTFT = outputData_ISTFT.astype(np.int16)
 
     wav.write(modelOutput + outputFileList[idx], testNARateRepository[idx], outputData_ISTFT)
-    print("Index: " + str(idx))
-    print("\tOutput File: " + str(outputFileList[idx]))
+    print("\tOutput File: " + str(outputFileList[idx]) + "\n")
