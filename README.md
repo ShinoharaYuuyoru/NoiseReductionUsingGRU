@@ -14,8 +14,13 @@ This graduation project will use the database builded by myself and try to use G
 
 ## 2018.05.23 Message
 *****
+
 The project is nearly over. The result is acceptable.
+
 Now I'm writing my paper.
+
 After finishing my paper and defence, I will clear up the codes and instructions.
+
 Thank you for watching my code and waiting for the completion.
+
 *****
