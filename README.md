@@ -9,7 +9,7 @@ Thanks for adityatb's work!
 adityatb uses LSTM to build noise reduction model.  
   
 With the development of RNN, I think GRU may be a better method.  
-This graduation project uses [MIR-1K]() dataset and try to use GRU to build noise reduction model.  
+This graduation project uses [MIR-1K](https://sites.google.com/site/unvoicedsoundseparation/mir-1k) dataset and try to use GRU to build noise reduction model.  
   
 ## Introduction  
 This project includes 2 main part.  
@@ -50,7 +50,7 @@ This project includes 2 main part.
 ## Execute Steps  
 *NOTICE:The detail of the implement, please read the code, refer to the modification history.*  
 1. CreateNoiseAddedDataset  
-	Download [MIR-1K]() dataset. Depress the folder `Wavfile`. We will get 1000 wav files.  
+	Download [MIR-1K](https://sites.google.com/site/unvoicedsoundseparation/mir-1k) dataset. Depress the folder `Wavfile`. We will get 1000 wav files.  
 	Set all wav files into the `Wavs` folder.  
 	Run `CreateNoiseAddedDataset.py`.  
 	We will get 1000 human voice files in `./Training/HumanVoices`.  
