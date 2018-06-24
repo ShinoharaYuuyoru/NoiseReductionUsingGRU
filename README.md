@@ -50,7 +50,7 @@ This project includes 2 main part.
 ## Execute Steps  
 *NOTICE:The detail of the implement, please read the code, refer to the modification history.*  
 1. CreateNoiseAddedDataset  
-	Download [MIR-1K](https://sites.google.com/site/unvoicedsoundseparation/mir-1k) dataset. Depress the folder `Wavfile`. We will get 1000 wav files.  
+	Download [MIR-1K](https://sites.google.com/site/unvoicedsoundseparation/mir-1k) dataset. Decompress the folder `Wavfile`. We will get 1000 wav files.  
 	Set all wav files into the `Wavs` folder.  
 	Run `CreateNoiseAddedDataset.py`.  
 	We will get 1000 human voice files in `./Training/HumanVoices`.  
