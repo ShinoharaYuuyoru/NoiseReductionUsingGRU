@@ -70,7 +70,7 @@ This project includes 2 main part.
   
 	3. GRUModelTest  
 		Run `GRUModelTest.py`.  
-		We will get less than 1000 files(because some noise added files correspond to the same pure human voice file) in `./Testing/ModelOutput`  
+		We will get less than 1000 files(because some noise added files correspond to the same pure human voice file) in `./Testing/ModelOutput` folder.  
 		You can test the model or do something else you like.  
   
 ***FINISH!***
