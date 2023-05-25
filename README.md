@@ -5,8 +5,7 @@ This is my graduation project in BIT, 2018.
   
 The project based on Python 3.5 and TensorFlow 1.8.  
 The project learning from [Noise Reduction using RNNs with Tensorflow](https://github.com/adityatb/noise-reduction-using-rnn) by adityatb.  
-Thanks for adityatb's work!  
-adityatb uses LSTM to build noise reduction model.  
+Thanks for [adityatb's work](https://github.com/adityatb/noise-reduction-using-rnn)! adityatb uses LSTM to build noise reduction model.  
   
 With the development of RNN, I think GRU may be a better method.  
 This graduation project uses [MIR-1K](https://sites.google.com/site/unvoicedsoundseparation/mir-1k) dataset and try to use GRU to build noise reduction model.  
